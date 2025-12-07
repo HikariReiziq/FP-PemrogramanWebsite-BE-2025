@@ -3,12 +3,11 @@ import {
   type GameTemplates,
   type LikedGames,
   type Prisma,
-  type ROLE,
   type Users,
 } from '@prisma/client';
 import { StatusCodes } from 'http-status-codes';
 
-import { ErrorResponse, prisma } from '@/common';
+import { ErrorResponse, prisma, type ROLE } from '@/common';
 import { paginate } from '@/utils';
 
 import {
@@ -62,6 +61,7 @@ export abstract class GameService {
         game_template: {
           select: {
             name: true,
+            slug: true,
           },
         },
         creator: user_id
@@ -92,6 +92,7 @@ export abstract class GameService {
     const cleanedResult = paginationResult.data.map(game => ({
       ...game,
       game_template: game.game_template.name,
+      game_template_slug: game.game_template.slug,
       creator: undefined,
       is_published: is_private ? game.is_published : undefined,
       creator_id: user_id ? undefined : game.creator.id,

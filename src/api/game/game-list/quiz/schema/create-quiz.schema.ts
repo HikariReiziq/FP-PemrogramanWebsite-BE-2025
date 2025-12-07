@@ -31,7 +31,7 @@ export const CreateQuizSchema = z.object({
   score_per_question: z.coerce.number().min(1).max(1000),
   files_to_upload: fileArraySchema({
     max_size: 2 * 1024 * 1024,
-    min_amount: 1,
+    min_amount: 0,
     max_amount: 20,
   }).optional(),
   questions: StringToObjectSchema(z.array(QuizQuestionSchema).min(1).max(20)),

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   type NextFunction,
   type Request,
@@ -44,7 +45,8 @@ export const AuthController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error) {
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return next(error);
       }
     },
@@ -68,7 +70,8 @@ export const AuthController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error) {
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return next(error);
       }
     },
@@ -86,7 +89,8 @@ export const AuthController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error) {
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return next(error);
       }
     },
@@ -115,7 +119,26 @@ export const AuthController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error) {
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        return next(error);
+      }
+    },
+  )
+  .delete(
+    '/account',
+    validateAuth({}),
+    async (request: AuthedRequest, response: Response, next: NextFunction) => {
+      try {
+        await AuthService.deleteAccount(request.user!.user_id);
+        const result = new SuccessResponse(
+          StatusCodes.OK,
+          'Account deleted successfully',
+        );
+
+        return response.status(result.statusCode).json(result.json());
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return next(error);
       }
     },

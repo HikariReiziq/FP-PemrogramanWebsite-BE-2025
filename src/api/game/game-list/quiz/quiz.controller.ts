@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   type NextFunction,
   type Request,
@@ -51,8 +52,9 @@ export const QuizController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error) {
-        next(error);
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        return next(error);
       }
     },
   )
@@ -101,7 +103,8 @@ export const QuizController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error) {
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return next(error);
       }
     },
@@ -162,8 +165,8 @@ export const QuizController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error) {
-        next(error);
+      } catch (error: unknown) {
+        return next(error);
       }
     },
   )
@@ -190,7 +193,7 @@ export const QuizController = Router()
           .status(successResponse.statusCode)
           .json(successResponse.json());
       } catch (error) {
-        next(error);
+        return next(error);
       }
     },
   )
@@ -218,7 +221,8 @@ export const QuizController = Router()
         return response
           .status(successResponse.statusCode)
           .json(successResponse.json());
-      } catch (error) {
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return next(error);
       }
     },

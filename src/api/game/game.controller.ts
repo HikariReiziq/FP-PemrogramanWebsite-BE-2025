@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   type NextFunction,
   type Request,
@@ -52,7 +53,8 @@ export const GameController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error) {
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return next(error);
       }
     },
@@ -81,7 +83,8 @@ export const GameController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error) {
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return next(error);
       }
     },
@@ -112,7 +115,8 @@ export const GameController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error) {
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return next(error);
       }
     },
@@ -145,7 +149,8 @@ export const GameController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error) {
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return next(error);
       }
     },
@@ -166,7 +171,8 @@ export const GameController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error) {
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return next(error);
       }
     },
@@ -195,7 +201,8 @@ export const GameController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error) {
+      } catch (error: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return next(error);
       }
     },

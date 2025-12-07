@@ -1,8 +1,8 @@
-import { type Prisma, type ROLE } from '@prisma/client';
+import { type Prisma } from '@prisma/client';
 import { StatusCodes } from 'http-status-codes';
 import { v4 } from 'uuid';
 
-import { ErrorResponse, type IQuizJson, prisma } from '@/common';
+import { ErrorResponse, type IQuizJson, prisma, type ROLE } from '@/common';
 import { FileManager } from '@/utils';
 
 import {

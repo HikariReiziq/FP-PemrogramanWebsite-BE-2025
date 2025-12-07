@@ -112,4 +112,25 @@ export const UserController = Router()
         return next(error);
       }
     },
+  )
+  .delete(
+    '/by-email/:email',
+    async (
+      request: AuthedRequest<{ email: string }>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        await UserService.deleteUserByEmail(request.params.email);
+
+        const result = new SuccessResponse(
+          StatusCodes.OK,
+          'User deleted successfully',
+        );
+
+        return response.status(result.statusCode).json(result.json());
+      } catch (error) {
+        return next(error);
+      }
+    },
   );

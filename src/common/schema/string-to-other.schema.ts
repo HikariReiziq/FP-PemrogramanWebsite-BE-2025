@@ -10,11 +10,14 @@ export const StringToObjectSchema = <U extends z.core.SomeType>(
   next_schema: U,
 ) =>
   z.preprocess(item => {
-    if (typeof item !== 'string') return;
+    if (typeof item !== 'string') {
+      return item;
+    }
 
     try {
       return JSON.parse(item) as z.infer<typeof next_schema>;
     } catch {
-      return;
+      // Return item as-is, let the schema validation handle the error
+      return item;
     }
   }, next_schema);

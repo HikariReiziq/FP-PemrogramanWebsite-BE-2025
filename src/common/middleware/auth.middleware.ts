@@ -1,11 +1,12 @@
-import { type ROLE } from '@prisma/client';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { type NextFunction, type Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 
 import { JwtUtils } from '@/utils';
 
 import { prisma } from '../config';
-import { type AuthedRequest } from '../interface';
+import { type AuthedRequest, type ROLE } from '../interface';
 import { ErrorResponse } from '../response';
 
 export const validateAuth =
@@ -42,7 +43,7 @@ export const validateAuth =
 
         const userData = await prisma.users.findUnique({
           where: {
-            id: payload.user_id,
+            id: payload.id,
             role: payload.role,
           },
           select: {
@@ -70,14 +71,16 @@ export const validateAuth =
         }
 
         request.user = {
-          user_id: userData.id,
+          id: userData.id,
           email: userData.email,
           role: userData.role,
+          user_id: userData.id,
         };
       }
 
       next();
-    } catch (error) {
+    } catch (error: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       return next(error);
     }
   };
