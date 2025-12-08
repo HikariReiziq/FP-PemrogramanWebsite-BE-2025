@@ -10,6 +10,7 @@ import { validateBody } from '@/common/middleware/validator.middleware';
 import {
   checkTypeAnswerGame,
   createTypeAnswerGame,
+  deleteTypeAnswerGame,
   getTypeAnswerGameDetail,
   getTypeAnswerGamePlayPrivate,
   getTypeAnswerGamePlayPublic,
@@ -132,12 +133,22 @@ typeTheAnswerRouter.get(
 typeTheAnswerRouter.post(
   '/:id/check',
 
+  validateAuth({}),
+
   validateBody({ schema: typeTheAnswerCheckSchema }),
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-
-  (request: UpdateStatusRequestProps, response: Response, next: NextFunction) =>
-    checkTypeAnswerGame(request, response, next) as unknown as any,
+  (
+    request: AuthedRequest<
+      { id: string },
+      Record<string, never>,
+      {
+        answers: { question_index: number; user_answer: string }[];
+        completion_time: number;
+      }
+    >,
+    response: Response,
+    next: NextFunction,
+  ) => checkTypeAnswerGame(request, response, next) as unknown as any,
 );
 
 typeTheAnswerRouter.get(
@@ -147,6 +158,17 @@ typeTheAnswerRouter.get(
 
   (request: UpdateStatusRequestProps, response: Response, next: NextFunction) =>
     getTypeAnswerLeaderboard(request, response, next) as unknown as any,
+);
+
+typeTheAnswerRouter.delete(
+  '/:id',
+
+  validateAuth({}),
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+  (request: UpdateStatusRequestProps, response: Response, next: NextFunction) =>
+    deleteTypeAnswerGame(request, response, next) as unknown as any,
 );
 
 export default typeTheAnswerRouter;

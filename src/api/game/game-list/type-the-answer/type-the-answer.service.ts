@@ -3,6 +3,7 @@ import { type GameStatus, type Prisma } from '@prisma/client'; // kalau ada enum
 
 import { ErrorResponse, prisma } from '@/common';
 import { FileManager } from '@/utils';
+import { syncTypeAnswerCSV } from '@/utils/csv-sync.util';
 
 const TYPE_THE_ANSWER_SLUG = 'type-the-answer';
 
@@ -20,8 +21,6 @@ export interface ICreateTypeAnswerGameArgs {
   description: string;
 
   thumbnailImageFile: unknown;
-
-  backgroundImageFile?: unknown;
 
   isPublished: boolean;
 
@@ -55,8 +54,6 @@ export interface IUpdateTypeAnswerGameArgs {
 
   thumbnailImageFile?: unknown;
 
-  backgroundImageFile?: unknown;
-
   isPublished?: boolean;
 
   timeLimitSeconds?: number;
@@ -72,6 +69,8 @@ export interface ICheckAnswerPayload {
 
     user_answer: string;
   }[];
+
+  completion_time?: number;
 }
 
 export async function createTypeAnswerGame(args: ICreateTypeAnswerGameArgs) {
@@ -81,8 +80,6 @@ export async function createTypeAnswerGame(args: ICreateTypeAnswerGameArgs) {
     description,
 
     thumbnailImageFile,
-
-    backgroundImageFile,
 
     isPublished,
 
@@ -95,27 +92,23 @@ export async function createTypeAnswerGame(args: ICreateTypeAnswerGameArgs) {
     creatorId,
   } = args;
 
-  // Upload files
+  // Upload thumbnail
 
   let thumbnailUrl = '';
 
-  let backgroundUrl = '';
-
   try {
-    if (thumbnailImageFile && thumbnailImageFile instanceof File) {
+    if (!thumbnailImageFile) {
+      throw new ErrorResponse(400, 'Thumbnail image is required');
+    }
+
+    if (thumbnailImageFile instanceof File) {
       thumbnailUrl = await FileManager.upload(
         'type-the-answer',
 
         thumbnailImageFile,
       );
-    }
-
-    if (backgroundImageFile && backgroundImageFile instanceof File) {
-      backgroundUrl = await FileManager.upload(
-        'type-the-answer',
-
-        backgroundImageFile,
-      );
+    } else {
+      throw new ErrorResponse(400, 'Invalid thumbnail image format');
     }
   } catch (error) {
     const errorMessage =
@@ -153,8 +146,6 @@ export async function createTypeAnswerGame(args: ICreateTypeAnswerGameArgs) {
           description,
 
           thumbnailUrl: thumbnailUrl || undefined,
-
-          backgroundUrl: backgroundUrl || undefined,
 
           timeLimitSec: timeLimitSeconds,
 
@@ -214,6 +205,11 @@ export async function createTypeAnswerGame(args: ICreateTypeAnswerGameArgs) {
 
       return created;
     });
+
+    // Sync to CSV after successful creation
+    void syncTypeAnswerCSV().catch((error: unknown) =>
+      console.error('CSV sync error:', error),
+    );
 
     return typeAnswerGame;
   } catch (error) {
@@ -286,6 +282,11 @@ export async function updateTypeAnswerGameStatus(
       },
     });
 
+    // Sync to CSV after status update
+    void syncTypeAnswerCSV().catch((error: unknown) =>
+      console.error('CSV sync error:', error),
+    );
+
     return updated;
   } catch (error) {
     const errorMessage =
@@ -313,8 +314,6 @@ export async function getTypeAnswerGameDetail(
       description: true,
 
       thumbnailUrl: true,
-
-      backgroundUrl: true,
 
       timeLimitSec: true,
 
@@ -346,8 +345,6 @@ export async function getTypeAnswerGameDetail(
 
     thumbnail_image: game.thumbnailUrl,
 
-    background_image: game.backgroundUrl,
-
     is_published: game.status === 'PUBLISHED',
 
     time_limit_seconds: game.timeLimitSec,
@@ -378,8 +375,6 @@ export async function updateTypeAnswerGame(args: IUpdateTypeAnswerGameArgs) {
 
     thumbnailImageFile,
 
-    backgroundImageFile,
-
     isPublished,
 
     timeLimitSeconds,
@@ -401,8 +396,6 @@ export async function updateTypeAnswerGame(args: IUpdateTypeAnswerGameArgs) {
 
       thumbnailUrl: true,
 
-      backgroundUrl: true,
-
       timeLimitSec: true,
 
       pointsPerQuestion: true,
@@ -423,27 +416,34 @@ export async function updateTypeAnswerGame(args: IUpdateTypeAnswerGameArgs) {
 
   let thumbnailUrl = game.thumbnailUrl;
 
-  let backgroundUrl = game.backgroundUrl ?? undefined;
-
   try {
-    if (thumbnailImageFile && thumbnailImageFile instanceof File) {
+    if (thumbnailImageFile) {
+      const fileInfo = thumbnailImageFile as unknown as {
+        originalname?: string;
+        name?: string;
+        size?: number;
+      };
+      console.log('Thumbnail file received:', {
+        name: fileInfo.originalname || fileInfo.name,
+        size: fileInfo.size,
+        type: typeof thumbnailImageFile,
+      });
+
       thumbnailUrl = await FileManager.upload(
         'type-the-answer',
 
         thumbnailImageFile,
       );
-    }
 
-    if (backgroundImageFile && backgroundImageFile instanceof File) {
-      backgroundUrl = await FileManager.upload(
-        'type-the-answer',
-
-        backgroundImageFile,
-      );
+      console.log('New thumbnail uploaded:', thumbnailUrl);
+    } else {
+      console.log('No new thumbnail file, keeping existing:', thumbnailUrl);
     }
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'File upload failed';
+
+    console.error('Thumbnail upload error:', error);
 
     throw new ErrorResponse(400, errorMessage);
   }
@@ -472,8 +472,6 @@ export async function updateTypeAnswerGame(args: IUpdateTypeAnswerGameArgs) {
         description: description ?? game.description,
 
         thumbnailUrl,
-
-        backgroundUrl,
 
         timeLimitSec: timeLimitSeconds ?? game.timeLimitSec,
 
@@ -552,6 +550,11 @@ export async function updateTypeAnswerGame(args: IUpdateTypeAnswerGameArgs) {
     return updatedGame;
   });
 
+  // Sync to CSV after successful update
+  void syncTypeAnswerCSV().catch((error: unknown) =>
+    console.error('CSV sync error:', error),
+  );
+
   return updated;
 }
 
@@ -628,6 +631,8 @@ export async function getTypeAnswerGamePlay(
 export async function checkTypeAnswer(
   id: string,
 
+  userId: string,
+
   payload: ICheckAnswerPayload,
 ) {
   const game = await prisma.typeAnswerGame.findUnique({
@@ -684,6 +689,26 @@ export async function checkTypeAnswer(
 
   const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
 
+  // Save the result to database
+  await prisma.typeAnswerGameResult.create({
+    data: {
+      gameId: id,
+      playerId: userId,
+      score,
+      correctAnswers: correctCount,
+      totalQuestions,
+      completionTime: payload.completion_time || 0,
+      percentage: Math.round(percentage * 100) / 100,
+    },
+  });
+
+  // Sync to CSV after saving result
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const syncPromise = syncTypeAnswerCSV();
+  void syncPromise.catch((error: unknown) =>
+    console.error('CSV sync error:', error),
+  );
+
   return {
     correct_answers: correctCount,
 
@@ -697,8 +722,131 @@ export async function checkTypeAnswer(
   };
 }
 
-export function getTypeAnswerLeaderboard() {
-  // Placeholder leaderboard until there is a real implementation
+export async function getTypeAnswerLeaderboard(gameId: string) {
+  // Get all results for this game
+  const allResults = await prisma.typeAnswerGameResult.findMany({
+    where: { gameId },
+    select: {
+      score: true,
+      completionTime: true,
+      percentage: true,
+      playerId: true,
+      player: {
+        select: {
+          username: true,
+        },
+      },
+    },
+    orderBy: [{ score: 'desc' }, { completionTime: 'asc' }],
+  });
 
-  return [];
+  // Group by username and keep only the best result for each player
+  const bestResultsByPlayer = new Map<string, (typeof allResults)[0]>();
+
+  for (const result of allResults) {
+    const existing = bestResultsByPlayer.get(result.playerId);
+
+    if (existing) {
+      // Keep result with higher score, or if same score, keep the one with faster time
+      if (
+        result.score > existing.score ||
+        (result.score === existing.score &&
+          result.completionTime < existing.completionTime)
+      ) {
+        bestResultsByPlayer.set(result.playerId, result);
+      }
+    } else {
+      bestResultsByPlayer.set(result.playerId, result);
+    }
+  }
+
+  // Convert to array and sort again
+  const results = [...bestResultsByPlayer.values()]
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+
+      return a.completionTime - b.completionTime;
+    })
+    .slice(0, 5); // Take top 5 only
+
+  return results.map(result => ({
+    player_name: result.player.username,
+    score: result.score,
+    completion_time: result.completionTime,
+    percentage: result.percentage,
+  }));
+}
+
+export async function deleteTypeAnswerGame(
+  id: string,
+
+  userId: string,
+
+  userRole: string,
+) {
+  try {
+    // Check if game exists and user has permission
+    const game = await prisma.typeAnswerGame.findUnique({
+      where: { id },
+
+      select: {
+        id: true,
+
+        creatorId: true,
+
+        thumbnailUrl: true,
+      },
+    });
+
+    if (!game) {
+      throw new ErrorResponse(404, 'Game not found');
+    }
+
+    // Only creator or admin can delete
+    if (
+      game.creatorId !== userId &&
+      userRole !== 'ADMIN' &&
+      userRole !== 'SUPER_ADMIN'
+    ) {
+      throw new ErrorResponse(
+        403,
+        'You do not have permission to delete this game',
+      );
+    }
+
+    // Delete thumbnail file if exists
+    if (game.thumbnailUrl) {
+      try {
+        await FileManager.remove(game.thumbnailUrl);
+      } catch (error) {
+        console.error('Failed to delete thumbnail:', error);
+        // Continue even if file deletion fails
+      }
+    }
+
+    // Delete from database (cascade will delete questions and results)
+    await prisma.$transaction(async tx => {
+      // Delete from Games table first
+      await tx.games.deleteMany({
+        where: { id },
+      });
+
+      // Delete from TypeAnswerGame (will cascade to questions and results)
+      await tx.typeAnswerGame.delete({
+        where: { id },
+      });
+    });
+
+    // Sync to CSV after successful deletion
+    void syncTypeAnswerCSV().catch((error: unknown) =>
+      console.error('CSV sync error:', error),
+    );
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to delete game';
+
+    throw new ErrorResponse(400, errorMessage);
+  }
 }

@@ -88,8 +88,6 @@ export async function createTypeAnswerGame(
 
       thumbnail_image,
 
-      background_image,
-
       is_published,
 
       time_limit_seconds,
@@ -107,8 +105,6 @@ export async function createTypeAnswerGame(
       description,
 
       thumbnailImageFile: thumbnail_image,
-
-      backgroundImageFile: background_image,
 
       isPublished: is_published,
 
@@ -198,8 +194,6 @@ export async function updateTypeAnswerGame(
 
       thumbnail_image,
 
-      background_image,
-
       is_published,
 
       time_limit_seconds,
@@ -223,8 +217,6 @@ export async function updateTypeAnswerGame(
       description,
 
       thumbnailImageFile: thumbnail_image,
-
-      backgroundImageFile: background_image,
 
       isPublished: is_published,
 
@@ -351,8 +343,22 @@ export async function checkTypeAnswerGame(
   next: NextFunction,
 ) {
   try {
+    const { user } = request;
+
+    if (!user || !user.id) {
+      response.status(401).json({
+        success: false,
+
+        message: 'Unauthorized',
+      });
+
+      return;
+    }
+
     const result = await typeTheAnswerService.checkTypeAnswer(
       request.params.id,
+
+      user.id,
 
       request.body,
     );
@@ -363,17 +369,53 @@ export async function checkTypeAnswerGame(
   }
 }
 
-export function getTypeAnswerLeaderboard(
-  _: AuthedRequest<{ id: string }>,
+export async function getTypeAnswerLeaderboard(
+  request: AuthedRequest<{ id: string }>,
 
   response: Response,
 
   next: NextFunction,
 ) {
   try {
-    const leaderboard = typeTheAnswerService.getTypeAnswerLeaderboard();
+    const leaderboard = await typeTheAnswerService.getTypeAnswerLeaderboard(
+      request.params.id,
+    );
 
     response.status(200).json({ success: true, data: leaderboard });
+  } catch (error: unknown) {
+    next(normalizeError(error));
+  }
+}
+
+export async function deleteTypeAnswerGame(
+  request: AuthedRequest<{ id: string }>,
+
+  response: Response,
+
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { user } = request;
+
+    if (!user || !user.id) {
+      response.status(401).json({
+        success: false,
+
+        message: 'Unauthorized',
+      });
+
+      return;
+    }
+
+    const { id } = request.params;
+
+    await typeTheAnswerService.deleteTypeAnswerGame(id, user.id, user.role);
+
+    response.status(200).json({
+      success: true,
+
+      message: 'Game deleted successfully',
+    });
   } catch (error: unknown) {
     next(normalizeError(error));
   }
