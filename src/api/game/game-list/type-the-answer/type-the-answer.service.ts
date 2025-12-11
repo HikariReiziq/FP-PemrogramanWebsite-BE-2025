@@ -600,8 +600,15 @@ export async function getTypeAnswerGamePlay(
   if (isPublic && game.status !== 'PUBLISHED')
     throw new ErrorResponse(404, 'Game not found');
 
-  if (!isPublic && userRole !== 'SUPER_ADMIN' && game.creatorId !== userId)
-    throw new ErrorResponse(403, 'User cannot get this game data');
+  // For private endpoint, allow access if user is SUPER_ADMIN or the creator
+  if (!isPublic) {
+    const isSuperAdmin = userRole === 'SUPER_ADMIN';
+    const isCreator = userId && game.creatorId === userId;
+
+    if (!isSuperAdmin && !isCreator) {
+      throw new ErrorResponse(403, 'User cannot get this game data');
+    }
+  }
 
   return {
     id: game.id,
@@ -654,6 +661,8 @@ export async function checkTypeAnswer(
       template: { select: { slug: true } },
 
       status: true,
+
+      creatorId: true,
     },
   });
 
@@ -661,7 +670,9 @@ export async function checkTypeAnswer(
 
   // Jangan blokir jika slug tidak cocok, supaya data lama tetap bisa dicek
 
-  if (game.status !== 'PUBLISHED')
+  // Allow owner to submit even if game is not published (for testing)
+  const isOwner = game.creatorId === userId;
+  if (game.status !== 'PUBLISHED' && !isOwner)
     throw new ErrorResponse(403, 'Game is not published');
 
   const totalQuestions = game.questions.length;
