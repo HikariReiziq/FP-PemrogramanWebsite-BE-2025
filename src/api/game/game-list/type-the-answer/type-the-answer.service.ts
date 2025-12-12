@@ -621,23 +621,13 @@ export async function getTypeAnswerGamePlay(
 
     is_published: game.status === 'PUBLISHED',
 
-    questions: (game.questions ?? []).map((q, index) => {
-      const question: {
-        question_index: number;
-        question_text: string;
-        correct_answer?: string;
-      } = {
-        question_index: q.order ?? index,
-        question_text: q.text,
-      };
+    questions: (game.questions ?? []).map((q, index) => ({
+      question_index: q.order ?? index,
 
-      // Only include correct_answer for private endpoint (owner preview)
-      if (!isPublic) {
-        question.correct_answer = q.answer;
-      }
+      question_text: q.text,
 
-      return question;
-    }),
+      correct_answer: q.answer,
+    })),
 
     time_limit_seconds: game.timeLimitSec,
 
