@@ -16,7 +16,9 @@ import {
 import { PairOrNoPairService } from './pair-or-no-pair.service';
 import {
   CreatePairOrNoPairSchema,
+  EvaluateSchema,
   type ICreatePairOrNoPair,
+  type IEvaluate,
   type IUpdatePairOrNoPair,
   UpdatePairOrNoPairSchema,
 } from './schema';
@@ -177,6 +179,63 @@ export const PairOrNoPairController = Router()
         const successResponse = new SuccessResponse(
           StatusCodes.OK,
           'Game deleted successfully',
+          result,
+        );
+
+        return response
+          .status(successResponse.statusCode)
+          .json(successResponse.json());
+      } catch (error) {
+        return next(error);
+      }
+    },
+  )
+  .post(
+    '/:game_id/evaluate',
+    validateAuth({ optional: true }),
+    validateBody({ schema: EvaluateSchema }),
+    async (
+      request: AuthedRequest<{ game_id: string }, {}, IEvaluate>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const result = await PairOrNoPairService.evaluateGame(
+          request.body,
+          request.params.game_id,
+          request.user?.user_id,
+        );
+
+        const successResponse = new SuccessResponse(
+          StatusCodes.OK,
+          'Score submitted successfully',
+          result,
+        );
+
+        return response
+          .status(successResponse.statusCode)
+          .json(successResponse.json());
+      } catch (error) {
+        return next(error);
+      }
+    },
+  )
+  .get(
+    '/:game_id/leaderboard',
+    async (
+      request: Request<{ game_id: string }, {}, {}, { difficulty?: string }>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const result = await PairOrNoPairService.getLeaderboard(
+          request.params.game_id,
+          request.query.difficulty,
+        );
+
+        const successResponse = new SuccessResponse(
+          StatusCodes.OK,
+          'Leaderboard retrieved successfully',
           result,
         );
 

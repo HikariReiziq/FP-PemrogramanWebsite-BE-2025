@@ -3,35 +3,38 @@ import { StatusCodes } from 'http-status-codes';
 import { v4 } from 'uuid';
 
 import { ErrorResponse, prisma } from '@/common';
-import { type IPairOrNoPairGameData } from '@/common/interface/games';
+import {
+  type ITypeSpeedGameData,
+  type ITypeSpeedResult,
+} from '@/common/interface/games';
 import { FileManager } from '@/utils';
 
 import {
-  type ICreatePairOrNoPair,
-  type IEvaluate,
-  type IUpdatePairOrNoPair,
+  type ICheckAnswer,
+  type ICreateTypeSpeed,
+  type IUpdateTypeSpeed,
 } from './schema';
 
-export abstract class PairOrNoPairService {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  private static GAME_SLUG = 'pair-or-no-pair';
+export abstract class TypeSpeedService {
+  private static gameSlug = 'type-speed';
 
-  static async createGame(data: ICreatePairOrNoPair, user_id: string) {
+  static async createGame(data: ICreateTypeSpeed, user_id: string) {
     await this.existGameCheck(data.name);
 
     const newGameId = v4();
     const gameTemplateId = await this.getGameTemplateId();
 
     const thumbnailImagePath = await FileManager.upload(
-      `game/pair-or-no-pair/${newGameId}`,
+      `game/type-speed/${newGameId}`,
       data.thumbnail_image,
     );
 
-    const gameJson: IPairOrNoPairGameData = {
-      items: data.items.map((item, index) => ({
-        id: `item-${String(index + 1).padStart(3, '0')}`,
-        left_content: item.left_content,
-        right_content: item.right_content,
+    const gameJson: ITypeSpeedGameData = {
+      time_limit: data.time_limit,
+      texts: data.texts.map((text, index) => ({
+        id: `text-${String(index + 1).padStart(3, '0')}`,
+        content: text.content,
+        difficulty: text.difficulty,
       })),
     };
 
@@ -77,7 +80,7 @@ export abstract class PairOrNoPairService {
       },
     });
 
-    if (!game || game.game_template.slug !== this.GAME_SLUG)
+    if (!game || game.game_template.slug !== this.gameSlug)
       throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Game not found');
 
     if (user_role !== 'SUPER_ADMIN' && game.creator_id !== user_id)
@@ -93,62 +96,8 @@ export abstract class PairOrNoPairService {
     };
   }
 
-  static async getGamePlay(
-    game_id: string,
-    is_public: boolean,
-    user_id?: string,
-    user_role?: ROLE,
-  ) {
-    const game = await prisma.games.findUnique({
-      where: { id: game_id },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        thumbnail_image: true,
-        is_published: true,
-        game_json: true,
-        creator_id: true,
-        game_template: {
-          select: { slug: true },
-        },
-      },
-    });
-
-    if (
-      !game ||
-      (is_public && !game.is_published) ||
-      game.game_template.slug !== this.GAME_SLUG
-    )
-      throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Game not found');
-
-    if (
-      !is_public &&
-      user_role !== 'SUPER_ADMIN' &&
-      game.creator_id !== user_id
-    )
-      throw new ErrorResponse(
-        StatusCodes.FORBIDDEN,
-        'User cannot get this game data',
-      );
-
-    const gameJson = game.game_json as unknown as IPairOrNoPairGameData | null;
-
-    if (!gameJson)
-      throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Game data not found');
-
-    return {
-      id: game.id,
-      name: game.name,
-      description: game.description,
-      thumbnail_image: game.thumbnail_image,
-      items: gameJson.items ?? [],
-      is_published: game.is_published,
-    };
-  }
-
   static async updateGame(
-    data: IUpdatePairOrNoPair,
+    data: IUpdateTypeSpeed,
     game_id: string,
     user_id: string,
     user_role: ROLE,
@@ -158,9 +107,7 @@ export abstract class PairOrNoPairService {
       select: {
         id: true,
         name: true,
-        description: true,
         thumbnail_image: true,
-        is_published: true,
         game_json: true,
         creator_id: true,
         game_template: {
@@ -169,7 +116,7 @@ export abstract class PairOrNoPairService {
       },
     });
 
-    if (!game || game.game_template.slug !== this.GAME_SLUG)
+    if (!game || game.game_template.slug !== this.gameSlug)
       throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Game not found');
 
     if (user_role !== 'SUPER_ADMIN' && game.creator_id !== user_id)
@@ -191,7 +138,7 @@ export abstract class PairOrNoPairService {
         );
     }
 
-    const oldGameJson = game.game_json as IPairOrNoPairGameData | null;
+    const oldGameJson = game.game_json as ITypeSpeedGameData | null;
 
     let thumbnailImagePath = game.thumbnail_image;
 
@@ -201,19 +148,20 @@ export abstract class PairOrNoPairService {
       }
 
       thumbnailImagePath = await FileManager.upload(
-        `game/pair-or-no-pair/${game_id}`,
+        `game/type-speed/${game_id}`,
         data.thumbnail_image,
       );
     }
 
-    const gameJson: IPairOrNoPairGameData = {
-      items: data.items
-        ? data.items.map((item, index) => ({
-            id: `item-${String(index + 1).padStart(3, '0')}`,
-            left_content: item.left_content,
-            right_content: item.right_content,
+    const gameJson: ITypeSpeedGameData = {
+      time_limit: data.time_limit ?? oldGameJson?.time_limit ?? 60,
+      texts: data.texts
+        ? data.texts.map((text, index) => ({
+            id: `text-${String(index + 1).padStart(3, '0')}`,
+            content: text.content,
+            difficulty: text.difficulty,
           }))
-        : (oldGameJson?.items ?? []),
+        : (oldGameJson?.texts ?? []),
     };
 
     const updatedGame = await prisma.games.update({
@@ -283,7 +231,7 @@ export abstract class PairOrNoPairService {
 
   private static async getGameTemplateId() {
     const result = await prisma.gameTemplates.findUnique({
-      where: { slug: this.GAME_SLUG },
+      where: { slug: this.gameSlug },
       select: { id: true },
     });
 
@@ -293,96 +241,121 @@ export abstract class PairOrNoPairService {
     return result.id;
   }
 
-  static async evaluateGame(
-    data: IEvaluate,
+  static async getGamePlay(
     game_id: string,
+    is_public: boolean,
     user_id?: string,
+    user_role?: ROLE,
   ) {
-    // Verify game exists and is a pair-or-no-pair game
     const game = await prisma.games.findUnique({
       where: { id: game_id },
       select: {
         id: true,
+        name: true,
+        description: true,
+        thumbnail_image: true,
+        is_published: true,
+        game_json: true,
+        creator_id: true,
         game_template: {
           select: { slug: true },
         },
       },
     });
 
-    if (!game || game.game_template.slug !== this.GAME_SLUG)
+    if (
+      !game ||
+      (is_public && !game.is_published) ||
+      game.game_template.slug !== this.gameSlug
+    )
       throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Game not found');
 
-    // Create leaderboard entry
-    const leaderboardEntry = await prisma.leaderboard.create({
-      data: {
-        game_id,
-        user_id: user_id || null,
-        score: data.score,
-        difficulty: data.difficulty,
-        time_taken: data.time_taken,
-      },
-      select: {
-        id: true,
-        score: true,
-        difficulty: true,
-        created_at: true,
-      },
-    });
+    if (
+      !is_public &&
+      user_role !== 'SUPER_ADMIN' &&
+      game.creator_id !== user_id
+    )
+      throw new ErrorResponse(
+        StatusCodes.FORBIDDEN,
+        'User cannot get this game data',
+      );
 
-    // Get user's rank for this game and difficulty
-    const rank = await prisma.leaderboard.count({
-      where: {
-        game_id,
-        difficulty: data.difficulty,
-        score: {
-          gt: data.score,
-        },
-      },
-    });
+    const gameJson = game.game_json as unknown as ITypeSpeedGameData | null;
+
+    if (!gameJson)
+      throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Game data not found');
+
+    // Random pilih 1 text untuk dimainkan
+    const randomText =
+      gameJson.texts[Math.floor(Math.random() * gameJson.texts.length)];
 
     return {
-      ...leaderboardEntry,
-      rank: rank + 1,
+      id: game.id,
+      name: game.name,
+      description: game.description,
+      thumbnail_image: game.thumbnail_image,
+      time_limit: gameJson.time_limit,
+      text: {
+        id: randomText.id,
+        content: randomText.content,
+        difficulty: randomText.difficulty,
+      },
+      is_published: game.is_published,
     };
   }
 
-  static async getLeaderboard(game_id: string, difficulty?: string) {
-    // Verify game exists
+  static async checkAnswer(data: ICheckAnswer, game_id: string) {
     const game = await prisma.games.findUnique({
       where: { id: game_id },
-      select: { id: true },
-    });
-
-    if (!game) throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Game not found');
-
-    // Build where clause
-    const where: { game_id: string; difficulty?: string } = { game_id };
-    if (difficulty) where.difficulty = difficulty;
-
-    // Get top 10 scores
-    const leaderboard = await prisma.leaderboard.findMany({
-      where,
-      orderBy: { score: 'desc' },
-      take: 10,
       select: {
-        id: true,
-        score: true,
-        difficulty: true,
-        created_at: true,
-        user: {
-          select: {
-            username: true,
-          },
+        game_json: true,
+        game_template: {
+          select: { slug: true },
         },
       },
     });
 
-    return leaderboard.map((entry, index) => ({
-      rank: index + 1,
-      username: entry.user?.username || 'Anonymous',
-      score: entry.score,
-      difficulty: entry.difficulty,
-      created_at: entry.created_at,
-    }));
+    if (!game || game.game_template.slug !== this.gameSlug)
+      throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Game not found');
+
+    const gameJson = game.game_json as unknown as ITypeSpeedGameData;
+    const text = gameJson.texts.find(t => t.id === data.text_id);
+
+    if (!text) throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Text not found');
+
+    // Calculate metrics
+    const originalText = text.content;
+    const userInput = data.user_input;
+
+    const totalChars = originalText.length;
+    let correctChars = 0;
+
+    for (
+      let index = 0;
+      index < Math.min(originalText.length, userInput.length);
+      index++
+    ) {
+      if (originalText[index] === userInput[index]) {
+        correctChars++;
+      }
+    }
+
+    const incorrectChars = totalChars - correctChars;
+    const accuracy = Math.round((correctChars / totalChars) * 100);
+
+    // WPM = (Characters Typed / 5) / (Time in Minutes)
+    const timeInMinutes = data.time_taken / 60;
+    const wpm = Math.round(userInput.length / 5 / timeInMinutes);
+
+    const result: ITypeSpeedResult = {
+      total_characters: totalChars,
+      correct_characters: correctChars,
+      incorrect_characters: incorrectChars,
+      wpm,
+      accuracy,
+      time_taken: data.time_taken,
+    };
+
+    return result;
   }
 }

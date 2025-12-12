@@ -1,13 +1,12 @@
+version: '3.8'
+
 services:
   database:
+    image: postgres:17  # PAKAI VERSI 17 DULU, JANGAN LATEST!
     container_name: fp-database
     restart: unless-stopped
-    image: postgres:latest
-    environment:
-      POSTGRES_DB: ${POSTGRES_NAME}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
+    
       - ${POSTGRES_PORT}:5432
    # volumes:
     #  - ./docker/volumes/:/var/lib/postgresql/data
@@ -17,6 +16,19 @@ services:
 networks:
   fp-network:
     driver: bridge
+    
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secure_password_123
+    volumes:
+      - postgres_data:/var/lib/postgresql  # PERUBAHAN DI SINI!
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fp_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  mysqldata:
+  postgres_data:
