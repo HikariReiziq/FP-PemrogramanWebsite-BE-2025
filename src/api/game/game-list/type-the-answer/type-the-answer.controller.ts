@@ -18,7 +18,9 @@ import {
   CreateTypeTheAnswerSchema,
   type ICheckTypeTheAnswer,
   type ICreateTypeTheAnswer,
+  type IUpdateStatus,
   type IUpdateTypeTheAnswer,
+  UpdateStatusSchema,
   UpdateTypeTheAnswerSchema,
 } from './schema';
 import { TypeTheAnswerService } from './type-the-answer.service';
@@ -80,7 +82,7 @@ export const TypeTheAnswerController = Router()
     },
   )
   .get(
-    '/:game_id/play',
+    '/:game_id/play/public',
     async (
       request: Request<{ game_id: string }>,
       response: Response,
@@ -89,10 +91,38 @@ export const TypeTheAnswerController = Router()
       try {
         const game = await TypeTheAnswerService.getTypeTheAnswerPlay(
           request.params.game_id,
+          true,
         );
         const result = new SuccessResponse(
           StatusCodes.OK,
-          'Get game for play successfully',
+          'Get public game successfully',
+          game,
+        );
+
+        return response.status(result.statusCode).json(result.json());
+      } catch (error) {
+        return next(error);
+      }
+    },
+  )
+  .get(
+    '/:game_id/play/private',
+    validateAuth({}),
+    async (
+      request: AuthedRequest<{ game_id: string }>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const game = await TypeTheAnswerService.getTypeTheAnswerPlay(
+          request.params.game_id,
+          false,
+          request.user!.user_id,
+          request.user!.role,
+        );
+        const result = new SuccessResponse(
+          StatusCodes.OK,
+          'Get private game successfully',
           game,
         );
 
@@ -124,6 +154,34 @@ export const TypeTheAnswerController = Router()
         const result = new SuccessResponse(
           StatusCodes.OK,
           'Type The Answer game updated',
+          updatedGame,
+        );
+
+        return response.status(result.statusCode).json(result.json());
+      } catch (error) {
+        return next(error);
+      }
+    },
+  )
+  .patch(
+    '/:game_id/status',
+    validateAuth({}),
+    validateBody({ schema: UpdateStatusSchema }),
+    async (
+      request: AuthedRequest<{ game_id: string }, {}, IUpdateStatus>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const updatedGame = await TypeTheAnswerService.updateStatus(
+          request.params.game_id,
+          request.body.status,
+          request.user!.user_id,
+          request.user!.role,
+        );
+        const result = new SuccessResponse(
+          StatusCodes.OK,
+          'Game status updated',
           updatedGame,
         );
 

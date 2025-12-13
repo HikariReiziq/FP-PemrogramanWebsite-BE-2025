@@ -2,7 +2,12 @@ import { type Prisma } from '@prisma/client';
 import { StatusCodes } from 'http-status-codes';
 import { v4 } from 'uuid';
 
-import { ErrorResponse, prisma, type ROLE } from '@/common';
+import {
+  ErrorResponse,
+  type ITypeTheAnswerJson,
+  prisma,
+  type ROLE,
+} from '@/common';
 import { FileManager } from '@/utils';
 
 import {
@@ -10,15 +15,6 @@ import {
   type ICreateTypeTheAnswer,
   type IUpdateTypeTheAnswer,
 } from './schema';
-
-interface ITypeTheAnswerJson {
-  time_limit_seconds: number;
-  score_per_question: number;
-  questions: {
-    question_text: string;
-    correct_answer: string;
-  }[];
-}
 
 export abstract class TypeTheAnswerService {
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -98,10 +94,19 @@ export abstract class TypeTheAnswerService {
         'User cannot access this game',
       );
 
+    const gameJson = game.game_json as ITypeTheAnswerJson | null;
+
     return {
-      ...game,
-      creator_id: undefined,
-      game_template: undefined,
+      id: game.id,
+      name: game.name,
+      description: game.description,
+      thumbnail_image: game.thumbnail_image,
+      is_published: game.is_published,
+      created_at: game.created_at,
+      total_played: game.total_played,
+      time_limit_seconds: gameJson?.time_limit_seconds ?? 60,
+      score_per_question: gameJson?.score_per_question ?? 10,
+      questions: gameJson?.questions ?? [],
     };
   }
 
@@ -154,7 +159,7 @@ export abstract class TypeTheAnswerService {
     let newThumbnailPath = game.thumbnail_image;
 
     if (data.thumbnail_image) {
-      await FileManager.deleteMany([game.thumbnail_image]);
+      await FileManager.remove(game.thumbnail_image);
       newThumbnailPath = await FileManager.upload(
         `game/type-the-answer/${game_id}`,
         data.thumbnail_image,
@@ -217,7 +222,7 @@ export abstract class TypeTheAnswerService {
         'User cannot delete this game',
       );
 
-    await FileManager.deleteMany([game.thumbnail_image]);
+    await FileManager.remove(game.thumbnail_image);
 
     await prisma.games.delete({
       where: { id: game_id },
@@ -226,7 +231,12 @@ export abstract class TypeTheAnswerService {
     return { id: game_id };
   }
 
-  static async getTypeTheAnswerPlay(game_id: string) {
+  static async getTypeTheAnswerPlay(
+    game_id: string,
+    is_public: boolean,
+    user_id?: string,
+    user_role?: ROLE,
+  ) {
     const game = await prisma.games.findUnique({
       where: { id: game_id },
       select: {
@@ -236,30 +246,49 @@ export abstract class TypeTheAnswerService {
         thumbnail_image: true,
         is_published: true,
         game_json: true,
+        creator_id: true,
         game_template: {
           select: { slug: true },
         },
       },
     });
 
-    if (!game || game.game_template.slug !== this.TYPE_THE_ANSWER_SLUG)
+    if (
+      !game ||
+      (is_public && !game.is_published) ||
+      game.game_template.slug !== this.TYPE_THE_ANSWER_SLUG
+    )
       throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Game not found');
 
-    if (!game.is_published)
-      throw new ErrorResponse(StatusCodes.FORBIDDEN, 'Game is not published');
+    if (
+      !is_public &&
+      user_role !== 'SUPER_ADMIN' &&
+      game.creator_id !== user_id
+    )
+      throw new ErrorResponse(
+        StatusCodes.FORBIDDEN,
+        'User cannot get this game data',
+      );
 
     const gameJson = game.game_json as ITypeTheAnswerJson;
+
+    const questionsWithIndex = (gameJson.questions ?? []).map(
+      (q, question_index) => ({
+        question_index,
+        question_text: q.question_text,
+        correct_answer: q.correct_answer,
+      }),
+    );
 
     return {
       id: game.id,
       name: game.name,
       description: game.description,
       thumbnail_image: game.thumbnail_image,
+      is_published: game.is_published,
       time_limit_seconds: gameJson.time_limit_seconds,
       score_per_question: gameJson.score_per_question,
-      questions: gameJson.questions.map(q => ({
-        question_text: q.question_text,
-      })),
+      questions: questionsWithIndex,
     };
   }
 
@@ -313,6 +342,46 @@ export abstract class TypeTheAnswerService {
       percentage: Math.round(percentage * 100) / 100,
       results,
     };
+  }
+
+  static async updateStatus(
+    game_id: string,
+    status: 'PUBLISHED' | 'DRAFT',
+    user_id: string,
+    user_role: ROLE,
+  ) {
+    const game = await prisma.games.findUnique({
+      where: { id: game_id },
+      select: {
+        id: true,
+        creator_id: true,
+        game_template: {
+          select: { slug: true },
+        },
+      },
+    });
+
+    if (!game || game.game_template.slug !== this.TYPE_THE_ANSWER_SLUG)
+      throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Game not found');
+
+    if (user_role !== 'SUPER_ADMIN' && game.creator_id !== user_id)
+      throw new ErrorResponse(
+        StatusCodes.FORBIDDEN,
+        'User cannot update this game',
+      );
+
+    const updatedGame = await prisma.games.update({
+      where: { id: game_id },
+      data: {
+        is_published: status === 'PUBLISHED',
+      },
+      select: {
+        id: true,
+        is_published: true,
+      },
+    });
+
+    return updatedGame;
   }
 
   private static async existGameCheck(name: string) {
