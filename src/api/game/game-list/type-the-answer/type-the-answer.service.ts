@@ -344,46 +344,6 @@ export abstract class TypeTheAnswerService {
     };
   }
 
-  static async updateStatus(
-    game_id: string,
-    status: 'PUBLISHED' | 'DRAFT',
-    user_id: string,
-    user_role: ROLE,
-  ) {
-    const game = await prisma.games.findUnique({
-      where: { id: game_id },
-      select: {
-        id: true,
-        creator_id: true,
-        game_template: {
-          select: { slug: true },
-        },
-      },
-    });
-
-    if (!game || game.game_template.slug !== this.TYPE_THE_ANSWER_SLUG)
-      throw new ErrorResponse(StatusCodes.NOT_FOUND, 'Game not found');
-
-    if (user_role !== 'SUPER_ADMIN' && game.creator_id !== user_id)
-      throw new ErrorResponse(
-        StatusCodes.FORBIDDEN,
-        'User cannot update this game',
-      );
-
-    const updatedGame = await prisma.games.update({
-      where: { id: game_id },
-      data: {
-        is_published: status === 'PUBLISHED',
-      },
-      select: {
-        id: true,
-        is_published: true,
-      },
-    });
-
-    return updatedGame;
-  }
-
   private static async existGameCheck(name: string) {
     const existingGame = await prisma.games.findUnique({
       where: { name },
