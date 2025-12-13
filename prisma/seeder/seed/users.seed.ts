@@ -1,19 +1,17 @@
 import path from 'node:path';
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type ROLE } from '@prisma/client';
 import { file, password, resolveSync } from 'bun';
 import csv from 'csvtojson';
 
 const prisma = new PrismaClient();
-
-type ROLEProps = 'ADMIN' | 'USER' | 'CREATOR';
 
 interface IUsers {
   id: string;
   username: string;
   email: string;
   password: string;
-  role: ROLEProps;
+  role: ROLE;
 }
 
 export const userSeed = async (is_production?: boolean) => {

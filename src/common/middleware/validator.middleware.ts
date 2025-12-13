@@ -36,12 +36,8 @@ export const validateBody = <T>({
   const upload = multer({ storage: multer.memoryStorage() });
   const middlewares: RequestHandler[] = [];
 
-  // Parse all form fields (both files and text fields)
   if (file_fields.length > 0) {
     middlewares.push(upload.fields(file_fields));
-  } else {
-    // If no file fields specified, use any() to capture all fields
-    middlewares.push(upload.any());
   }
 
   middlewares.push((request: Request, _: Response, next: NextFunction) => {

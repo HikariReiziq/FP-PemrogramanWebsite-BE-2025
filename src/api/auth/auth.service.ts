@@ -58,7 +58,7 @@ export abstract class AuthService {
       throw new ErrorResponse(StatusCodes.BAD_REQUEST, 'Invalid password');
 
     const token = JwtUtils.signToken({
-      id: isUserExist.id,
+      user_id: isUserExist.id,
       email: isUserExist.email,
       role: isUserExist.role,
     });
@@ -107,20 +107,5 @@ export abstract class AuthService {
         updated_at: true,
       },
     });
-  }
-
-  static async deleteAccount(user_id: string) {
-    const userExist = await prisma.users.findUnique({
-      where: { id: user_id },
-    });
-
-    if (!userExist)
-      throw new ErrorResponse(StatusCodes.NOT_FOUND, 'User not found');
-
-    await prisma.users.delete({
-      where: { id: user_id },
-    });
-
-    return;
   }
 }

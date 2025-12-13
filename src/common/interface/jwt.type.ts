@@ -1,10 +1,7 @@
-export type IRole = 'USER' | 'ADMIN' | 'SUPER_ADMIN';
+import { type ROLE } from '@prisma/client';
 
 export interface IJwtPayload {
-  id: string;
-  user_id?: string;
+  user_id: string;
   email: string;
-  role: 'USER' | 'ADMIN' | 'SUPER_ADMIN';
-  iat?: number;
-  exp?: number;
+  role: ROLE;
 }

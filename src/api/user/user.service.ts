@@ -143,28 +143,6 @@ export abstract class UserService {
     await FileManager.remove(user.profile_picture);
   }
 
-  static async deleteUserByEmail(email: string) {
-    const user = await prisma.users.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        profile_picture: true,
-      },
-    });
-
-    if (!user)
-      throw new ErrorResponse(
-        StatusCodes.NOT_FOUND,
-        'User with this email not found',
-      );
-
-    await prisma.users.delete({
-      where: { id: user.id },
-    });
-
-    await FileManager.remove(user.profile_picture);
-  }
-
   private static async findExistUser(user_id: string) {
     const user = await prisma.users.findUnique({
       where: { id: user_id },

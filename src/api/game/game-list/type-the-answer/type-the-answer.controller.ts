@@ -1,422 +1,186 @@
-// src/api/game/game-list/type-the-answer/type-the-answer.controller.ts
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { type NextFunction, type Response } from 'express';
-
-import { type AuthedRequest } from '@/common/interface';
-import { normalizeError } from '@/common/utils/error.util';
+import {
+  type NextFunction,
+  type Request,
+  type Response,
+  Router,
+} from 'express';
+import { StatusCodes } from 'http-status-codes';
 
 import {
-  type CreateTypeAnswerFormProps,
-  type TypeAnswerQuestionProps,
-  type TypeTheAnswerCheckProps,
-  type UpdateTypeAnswerFormProps,
-} from './type-the-answer.schema';
-import * as typeTheAnswerService from './type-the-answer.service';
-
-type CreateGameRequest = AuthedRequest<
-  Record<string, never>,
-  unknown,
-  CreateTypeAnswerFormProps
->;
-
-type UpdateStatusRequest = AuthedRequest<
-  { id: string },
-  unknown,
-  { status: 'DRAFT' | 'PUBLISHED' }
->;
-
-type UpdateGameRequest = AuthedRequest<
-  { id: string },
-  unknown,
-  UpdateTypeAnswerFormProps
->;
-
-type GetGameRequest = AuthedRequest<{ id: string }>;
-
-function normalizeQuestions(questions: TypeAnswerQuestionProps[]): {
-  order: number;
-  question_index: number;
-  question_text: string;
-  correct_answer: string;
-}[] {
-  return questions.map((question, index) => {
-    let orderValue = index;
-    if (typeof question.order === 'number') orderValue = question.order;
-    else if (typeof question.question_index === 'number')
-      orderValue = question.question_index;
-
-    const questionIndex =
-      typeof question.question_index === 'number'
-        ? question.question_index
-        : index;
-
-    return {
-      order: orderValue,
-      question_index: questionIndex,
-      question_text: question.question_text ?? question.questionText ?? '',
-      correct_answer: question.correct_answer ?? question.correctAnswer ?? '',
-    };
-  });
-}
-
-export async function createTypeAnswerGame(
-  request: CreateGameRequest,
-
-  response: Response,
-
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const { user } = request;
-
-    if (!user || !user.id) {
-      response.status(401).json({
-        success: false,
-
-        message: 'Unauthorized',
-      });
-
-      return;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-
-    const {
-      name,
-
-      description,
-
-      thumbnail_image,
-
-      is_published,
-
-      time_limit_seconds,
-
-      score_per_question,
-
-      questions,
-    } = request.body;
-
-    const normalizedQuestions = normalizeQuestions(questions);
-
-    const createdGame = await typeTheAnswerService.createTypeAnswerGame({
-      name,
-
-      description,
-
-      thumbnailImageFile: thumbnail_image,
-
-      isPublished: is_published,
-
-      timeLimitSeconds: time_limit_seconds,
-
-      scorePerQuestion: score_per_question,
-
-      questions: normalizedQuestions,
-
-      creatorId: user.id,
-    });
-
-    response.status(201).json({
-      success: true,
-
-      data: createdGame,
-    });
-  } catch (error: unknown) {
-    next(normalizeError(error));
-  }
-}
-
-export async function getTypeAnswerGameDetail(
-  request: GetGameRequest,
-
-  response: Response,
-
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const { user } = request;
-
-    if (!user || !user.id) {
-      response.status(401).json({
-        success: false,
-
-        message: 'Unauthorized',
-      });
-
-      return;
-    }
-
-    const data = await typeTheAnswerService.getTypeAnswerGameDetail(
-      request.params.id,
-
-      user.id,
-
-      user.role,
-    );
-
-    response.status(200).json({
-      success: true,
-
-      data,
-    });
-  } catch (error: unknown) {
-    next(normalizeError(error));
-  }
-}
-
-export async function updateTypeAnswerGame(
-  request: UpdateGameRequest,
-
-  response: Response,
-
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const { user } = request;
-
-    if (!user || !user.id) {
-      response.status(401).json({
-        success: false,
-
-        message: 'Unauthorized',
-      });
-
-      return;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-
-    const {
-      name,
-
-      description,
-
-      thumbnail_image,
-
-      is_published,
-
-      time_limit_seconds,
-
-      score_per_question,
-
-      questions,
-    } = request.body;
-
-    const normalizedQuestions = normalizeQuestions(questions);
-
-    const updatedGame = await typeTheAnswerService.updateTypeAnswerGame({
-      id: request.params.id,
-
-      userId: user.id,
-
-      userRole: user.role,
-
-      name,
-
-      description,
-
-      thumbnailImageFile: thumbnail_image,
-
-      isPublished: is_published,
-
-      timeLimitSeconds: time_limit_seconds,
-
-      scorePerQuestion: score_per_question,
-
-      questions: normalizedQuestions,
-    });
-
-    response.status(200).json({
-      success: true,
-
-      data: { id: updatedGame.id },
-    });
-  } catch (error: unknown) {
-    next(normalizeError(error));
-  }
-}
-
-export async function updateTypeAnswerGameStatus(
-  request: UpdateStatusRequest,
-
-  response: Response,
-
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const { user } = request;
-
-    if (!user || !user.id) {
-      response.status(401).json({
-        success: false,
-
-        message: 'Unauthorized',
-      });
-
-      return;
-    }
-
-    const { id } = request.params;
-
-    const { status } = request.body;
-
-    const updatedGame = await typeTheAnswerService.updateTypeAnswerGameStatus({
-      id,
-
-      status,
-
-      userId: user.id,
-    });
-
-    response.status(200).json({
-      success: true,
-
-      data: updatedGame,
-    });
-  } catch (error: unknown) {
-    next(normalizeError(error));
-  }
-}
-
-export async function getTypeAnswerGamePlayPublic(
-  request: AuthedRequest<{ id: string }>,
-
-  response: Response,
-
-  next: NextFunction,
-) {
-  try {
-    const data = await typeTheAnswerService.getTypeAnswerGamePlay(
-      request.params.id,
-
-      true,
-    );
-
-    response.status(200).json({ success: true, data });
-  } catch (error: unknown) {
-    next(normalizeError(error));
-  }
-}
-
-export async function getTypeAnswerGamePlayPrivate(
-  request: AuthedRequest<{ id: string }>,
-
-  response: Response,
-
-  next: NextFunction,
-) {
-  try {
-    const { user } = request;
-
-    if (!user || !user.id) {
-      response.status(401).json({
-        success: false,
-
-        message: 'Unauthorized',
-      });
-
-      return;
-    }
-
-    const data = await typeTheAnswerService.getTypeAnswerGamePlay(
-      request.params.id,
-
-      false,
-
-      user.id,
-
-      user.role,
-    );
-
-    response.status(200).json({ success: true, data });
-  } catch (error: unknown) {
-    next(normalizeError(error));
-  }
-}
-
-export async function checkTypeAnswerGame(
-  request: AuthedRequest<{ id: string }, {}, TypeTheAnswerCheckProps>,
-
-  response: Response,
-
-  next: NextFunction,
-) {
-  try {
-    const { user } = request;
-
-    if (!user || !user.id) {
-      response.status(401).json({
-        success: false,
-
-        message: 'Unauthorized',
-      });
-
-      return;
-    }
-
-    const result = await typeTheAnswerService.checkTypeAnswer(
-      request.params.id,
-
-      user.id,
-
-      request.body,
-    );
-
-    response.status(200).json({ success: true, data: result });
-  } catch (error: unknown) {
-    next(normalizeError(error));
-  }
-}
-
-export async function getTypeAnswerLeaderboard(
-  request: AuthedRequest<{ id: string }>,
-
-  response: Response,
-
-  next: NextFunction,
-) {
-  try {
-    const leaderboard = await typeTheAnswerService.getTypeAnswerLeaderboard(
-      request.params.id,
-    );
-
-    response.status(200).json({ success: true, data: leaderboard });
-  } catch (error: unknown) {
-    next(normalizeError(error));
-  }
-}
-
-export async function deleteTypeAnswerGame(
-  request: AuthedRequest<{ id: string }>,
-
-  response: Response,
-
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const { user } = request;
-
-    if (!user || !user.id) {
-      response.status(401).json({
-        success: false,
-
-        message: 'Unauthorized',
-      });
-
-      return;
-    }
-
-    const { id } = request.params;
-
-    await typeTheAnswerService.deleteTypeAnswerGame(id, user.id, user.role);
-
-    response.status(200).json({
-      success: true,
-
-      message: 'Game deleted successfully',
-    });
-  } catch (error: unknown) {
-    next(normalizeError(error));
-  }
-}
+  type AuthedRequest,
+  SuccessResponse,
+  validateAuth,
+  validateBody,
+} from '@/common';
+
+import {
+  CheckTypeTheAnswerSchema,
+  CreateTypeTheAnswerSchema,
+  type ICheckTypeTheAnswer,
+  type ICreateTypeTheAnswer,
+  type IUpdateTypeTheAnswer,
+  UpdateTypeTheAnswerSchema,
+} from './schema';
+import { TypeTheAnswerService } from './type-the-answer.service';
+
+export const TypeTheAnswerController = Router()
+  .post(
+    '/',
+    validateAuth({}),
+    validateBody({
+      schema: CreateTypeTheAnswerSchema,
+      file_fields: [{ name: 'thumbnail_image', maxCount: 1 }],
+    }),
+    async (
+      request: AuthedRequest<{}, {}, ICreateTypeTheAnswer>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const newGame = await TypeTheAnswerService.createTypeTheAnswer(
+          request.body,
+          request.user!.user_id,
+        );
+        const result = new SuccessResponse(
+          StatusCodes.CREATED,
+          'Type The Answer game created',
+          newGame,
+        );
+
+        return response.status(result.statusCode).json(result.json());
+      } catch (error) {
+        return next(error);
+      }
+    },
+  )
+  .get(
+    '/:game_id',
+    validateAuth({}),
+    async (
+      request: AuthedRequest<{ game_id: string }>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const game = await TypeTheAnswerService.getTypeTheAnswerGameDetail(
+          request.params.game_id,
+          request.user!.user_id,
+          request.user!.role,
+        );
+        const result = new SuccessResponse(
+          StatusCodes.OK,
+          'Get game successfully',
+          game,
+        );
+
+        return response.status(result.statusCode).json(result.json());
+      } catch (error) {
+        return next(error);
+      }
+    },
+  )
+  .get(
+    '/:game_id/play',
+    async (
+      request: Request<{ game_id: string }>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const game = await TypeTheAnswerService.getTypeTheAnswerPlay(
+          request.params.game_id,
+        );
+        const result = new SuccessResponse(
+          StatusCodes.OK,
+          'Get game for play successfully',
+          game,
+        );
+
+        return response.status(result.statusCode).json(result.json());
+      } catch (error) {
+        return next(error);
+      }
+    },
+  )
+  .put(
+    '/:game_id',
+    validateAuth({}),
+    validateBody({
+      schema: UpdateTypeTheAnswerSchema,
+      file_fields: [{ name: 'thumbnail_image', maxCount: 1 }],
+    }),
+    async (
+      request: AuthedRequest<{ game_id: string }, {}, IUpdateTypeTheAnswer>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const updatedGame = await TypeTheAnswerService.updateTypeTheAnswer(
+          request.body,
+          request.params.game_id,
+          request.user!.user_id,
+          request.user!.role,
+        );
+        const result = new SuccessResponse(
+          StatusCodes.OK,
+          'Type The Answer game updated',
+          updatedGame,
+        );
+
+        return response.status(result.statusCode).json(result.json());
+      } catch (error) {
+        return next(error);
+      }
+    },
+  )
+  .delete(
+    '/:game_id',
+    validateAuth({}),
+    async (
+      request: AuthedRequest<{ game_id: string }>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const deletedGame = await TypeTheAnswerService.deleteTypeTheAnswer(
+          request.params.game_id,
+          request.user!.user_id,
+          request.user!.role,
+        );
+        const result = new SuccessResponse(
+          StatusCodes.OK,
+          'Type The Answer game deleted',
+          deletedGame,
+        );
+
+        return response.status(result.statusCode).json(result.json());
+      } catch (error) {
+        return next(error);
+      }
+    },
+  )
+  .post(
+    '/:game_id/check',
+    validateBody({ schema: CheckTypeTheAnswerSchema }),
+    async (
+      request: Request<{ game_id: string }, {}, ICheckTypeTheAnswer>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const checkResult = await TypeTheAnswerService.checkAnswer(
+          request.body,
+          request.params.game_id,
+        );
+        const result = new SuccessResponse(
+          StatusCodes.OK,
+          'Answer checked successfully',
+          checkResult,
+        );
+
+        return response.status(result.statusCode).json(result.json());
+      } catch (error) {
+        return next(error);
+      }
+    },
+  );

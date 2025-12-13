@@ -3,11 +3,12 @@ import {
   type GameTemplates,
   type LikedGames,
   type Prisma,
+  type ROLE,
   type Users,
 } from '@prisma/client';
 import { StatusCodes } from 'http-status-codes';
 
-import { ErrorResponse, prisma, type ROLE } from '@/common';
+import { ErrorResponse, prisma } from '@/common';
 import { paginate } from '@/utils';
 
 import {

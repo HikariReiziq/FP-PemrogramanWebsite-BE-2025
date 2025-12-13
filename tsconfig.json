@@ -5,7 +5,7 @@
     "declaration": true,
     "removeComments": true,
     "moduleResolution": "node",
-    "types": ["bun-types", "node"],
+    "types": ["bun-types"],
     "importsNotUsedAsValues": "remove",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -17,6 +17,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*", "scripts/**/*", "prisma/seeder/seed/export-type-answer-data.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules"]
 }

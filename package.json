@@ -31,9 +31,9 @@
     "start:dev": "dotenv -e .env.development -- bun run --watch src/main.ts"
   },
   "lint-staged": {
-    "package.json": "npm run sort:package --",
+    "package.json": "bun sort:package",
     "src/**/*.ts": [
-      "npm run lint --"
+      "bun lint"
     ]
   },
   "dependencies": {
