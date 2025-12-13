@@ -1,16 +1,21 @@
 services:
   database:
+    image: postgres:17
     container_name: fp-database
     restart: unless-stopped
-    image: postgres:latest
+    ports:
+      - ${POSTGRES_PORT}:5432
     environment:
       POSTGRES_DB: ${POSTGRES_NAME}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - ${POSTGRES_PORT}:5432
     volumes:
-      - ./docker/volumes/:/var/lib/postgresql
+      - ./docker/volumes/:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fp_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - fp-network
 
