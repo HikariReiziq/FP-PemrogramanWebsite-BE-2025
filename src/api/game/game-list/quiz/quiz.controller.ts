@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   type NextFunction,
   type Request,
@@ -102,8 +101,7 @@ export const QuizController = Router()
         );
 
         return response.status(result.statusCode).json(result.json());
-      } catch (error: unknown) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      } catch (error) {
         return next(error);
       }
     },
@@ -220,8 +218,7 @@ export const QuizController = Router()
         return response
           .status(successResponse.statusCode)
           .json(successResponse.json());
-      } catch (error: unknown) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      } catch (error) {
         return next(error);
       }
     },
